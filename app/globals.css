@@ -1,0 +1,84 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #f9fafb;
+  color: #1f2937;
+}
+
+.btn-primary {
+  @apply bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.btn-danger {
+  @apply bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded-lg transition-colors;
+}
+
+.card {
+  @apply bg-white rounded-lg shadow-md p-6;
+}
+
+.sidebar {
+  @apply bg-white border-r border-gray-200 min-h-screen;
+}
+
+.badge-status {
+  @apply inline-block px-3 py-1 rounded-full text-sm font-medium;
+}
+
+.badge-success {
+  @apply badge-status bg-green-100 text-green-800;
+}
+
+.badge-warning {
+  @apply badge-status bg-yellow-100 text-yellow-800;
+}
+
+.badge-danger {
+  @apply badge-status bg-red-100 text-red-800;
+}
+
+.badge-info {
+  @apply badge-status bg-blue-100 text-blue-800;
+}
+
+.form-input {
+  @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500;
+}
+
+.form-label {
+  @apply block text-sm font-medium text-gray-700 mb-2;
+}
+
+.table-row {
+  @apply border-b border-gray-200 hover:bg-gray-50;
+}
+
+.alert {
+  @apply p-4 rounded-lg mb-4;
+}
+
+.alert-success {
+  @apply alert bg-green-100 text-green-800 border border-green-300;
+}
+
+.alert-danger {
+  @apply alert bg-red-100 text-red-800 border border-red-300;
+}
+
+.alert-warning {
+  @apply alert bg-yellow-100 text-yellow-800 border border-yellow-300;
+}
+
+.alert-info {
+  @apply alert bg-blue-100 text-blue-800 border border-blue-300;
+}

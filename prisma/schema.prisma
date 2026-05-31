@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  name       String
+  role       String   @default("participant")
+  companyId  Int?
+  status     String   @default("active")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  Participant Participant?
+  TestAssignmentsAsRecruiter TestAssignment[] @relation("recruiter")
+  TestAssignmentsAsParticipant TestAssignment[] @relation("participant")
+  testSessions TestSession[]
+  AuditLogs   AuditLog[]
+}
+
+model Participant {
+  id         Int    @id @default(autoincrement())
+  userId     Int    @unique
+  phone      String?
+  position   String?
+  department String?
+  education  String?
+  experienceYears Int?
+  status     String @default("pending")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+  participantOtps ParticipantOtp[] @relation("Participant_ParticipantOtp")
+}
+
+model TestCategory {
+  id Int @id @default(autoincrement())
+  name String
+  description String?
+  durationMinutes Int?
+  passingScore Float?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  TestSubcategories TestSubcategory[]
+  testAssignments TestAssignment[]
+  scoringRules ScoringRule[]
+  scoreInterpretations ScoreInterpretation[]
+  testResults TestResult[]
+}
+
+model TestSubcategory {
+  id Int @id @default(autoincrement())
+  testCategoryId Int
+  name String
+  description String?
+  questionCount Int?
+  durationMinutes Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testCategory TestCategory @relation(fields: [testCategoryId], references: [id])
+  Questions Question[]
+}
+
+model Question {
+  id Int @id @default(autoincrement())
+  testSubcategoryId Int
+  questionText String
+  questionType String?
+  imageUrl String?
+  displayOrder Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testSubcategory TestSubcategory @relation(fields: [testSubcategoryId], references: [id])
+  options QuestionOption[]
+}
+
+model QuestionOption {
+  id Int @id @default(autoincrement())
+  questionId Int
+  optionText String?
+  optionValue String?
+  displayOrder Int?
+  isCorrect Boolean @default(false)
+  scoreValue Float?
+  createdAt DateTime @default(now())
+
+  question Question @relation(fields: [questionId], references: [id])
+}
+
+model TestAssignment {
+  id Int @id @default(autoincrement())
+  recruiterId Int
+  participantId Int
+  testCategoryId Int
+  status String @default("pending")
+  assignedAt DateTime @default(now())
+  startedAt DateTime?
+  completedAt DateTime?
+  dueDate DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recruiter User @relation("recruiter", fields: [recruiterId], references: [id])
+  participant User @relation("participant", fields: [participantId], references: [id])
+  testCategory TestCategory @relation(fields: [testCategoryId], references: [id])
+  TestSession TestSession?
+}
+
+model TestSession {
+  id Int @id @default(autoincrement())
+  testAssignmentId Int @unique
+  participantId Int
+  sessionToken String @unique
+  currentQuestionIndex Int @default(0)
+  totalQuestions Int?
+  status String @default("in_progress")
+  startedAt DateTime @default(now())
+  endedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testAssignment TestAssignment @relation(fields: [testAssignmentId], references: [id])
+  participant User @relation(fields: [participantId], references: [id])
+  ParticipantAnswers ParticipantAnswer[]
+  TestResult TestResult?
+}
+
+model ParticipantAnswer {
+  id Int @id @default(autoincrement())
+  testSessionId Int
+  questionId Int
+  answerValue String?
+  selectedOptionId Int?
+  timeSpentSeconds Int?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testSession TestSession @relation(fields: [testSessionId], references: [id])
+}
+
+model TestResult {
+  id Int @id @default(autoincrement())
+  testSessionId Int @unique
+  participantId Int
+  testCategoryId Int
+  totalScore Float?
+  passingScore Float?
+  status String?
+  resultJson String?
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testSession TestSession @relation(fields: [testSessionId], references: [id])
+  testCategory TestCategory @relation(fields: [testCategoryId], references: [id])
+}
+
+model ScoringRule {
+  id Int @id @default(autoincrement())
+  testCategoryId Int
+  ruleName String
+  ruleDescription String?
+  scoringMethod String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testCategory TestCategory @relation(fields: [testCategoryId], references: [id])
+}
+
+model ScoreInterpretation {
+  id Int @id @default(autoincrement())
+  testCategoryId Int
+  scoreMin Float
+  scoreMax Float
+  interpretation String
+  recommendation String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  testCategory TestCategory @relation(fields: [testCategoryId], references: [id])
+}
+
+model AuditLog {
+  id Int @id @default(autoincrement())
+  userId Int?
+  action String?
+  resourceType String?
+  resourceId Int?
+  changes String?
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+}
+
+model ParticipantOtp {
+  id Int @id @default(autoincrement())
+  participantId Int
+  otpHash String
+  channel String?
+  attempts Int @default(0)
+  expiresAt DateTime
+  used Boolean @default(false)
+  createdAt DateTime @default(now())
+
+  participant Participant @relation("Participant_ParticipantOtp", fields: [participantId], references: [id])
+}
