@@ -1,8 +1,9 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { signIn, getSession } from 'next-auth/react';
 
 export default function AdminLogin() {
   const [email, setEmail] = useState('');
@@ -15,32 +16,29 @@ export default function AdminLogin() {
     e.preventDefault();
     setError('');
     setLoading(true);
-
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setError(data.error || 'Login gagal');
+      // Use NextAuth credentials provider
+      const res = await signIn('credentials', { redirect: false, email, password });
+      if (res?.error) {
+        setError('Login gagal');
         setLoading(false);
         return;
       }
 
-      // Store token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
+      // Get session info
+      const session = await getSession();
+      const user = session?.user;
 
-      // Redirect based on role
-      if (data.user.role === 'admin') {
-        router.push('/admin/dashboard');
-      } else if (data.user.role === 'recruiter') {
-        router.push('/recruiter/dashboard');
+      // If NextAuth session not available, show error (legacy login removed)
+      if (!user) {
+        setError('Login gagal');
+        setLoading(false);
+        return;
       }
+
+      // Redirect based on NextAuth session user role
+      if (user.role === 'admin') router.push('/admin/dashboard');
+      else if (user.role === 'recruiter') router.push('/recruiter/dashboard');
     } catch (err) {
       setError('Terjadi kesalahan server');
       setLoading(false);

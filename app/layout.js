@@ -1,4 +1,5 @@
 import './globals.css';
+import NextAuthProvider from './providers/SessionProvider';
 
 export const metadata = {
   title: 'Psikotes Online Indonesia',
@@ -13,7 +14,7 @@ export default function RootLayout({ children }) {
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
       <body className="bg-gray-50">
-        {children}
+        <NextAuthProvider>{children}</NextAuthProvider>
       </body>
     </html>
   );

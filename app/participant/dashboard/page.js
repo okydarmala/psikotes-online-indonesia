@@ -3,30 +3,32 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function ParticipantDashboard() {
   const [user, setUser] = useState(null);
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { data: session } = useSession();
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      router.push('/participant-login');
+    if (session?.user) {
+      setUser(session.user);
+      if (session.user.participantId) fetchAssignments(session.user.participantId);
       return;
     }
 
-    const userData = JSON.parse(userStr);
-    setUser(userData);
-    fetchAssignments(userData.participantId);
-  }, [router]);
+    // If no NextAuth session, redirect to participant login
+    router.push('/participant-login');
+  }, [router, session]);
 
   const fetchAssignments = async (participantId) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(\`/api/participants/\${participantId}/assignments\`, {
-        headers: { Authorization: \`Bearer \${token}\` },
+      // Use cookie-based session (NextAuth). API routes accept cookie auth via credentials: 'include'.
+      const res = await fetch(`/api/participants/${participantId}/assignments`, {
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -41,9 +43,11 @@ export default function ParticipantDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/');
+    try {
+      signOut({ callbackUrl: '/' });
+    } catch (e) {
+      router.push('/');
+    }
   };
 
   const getStatusBadge = (status) => {

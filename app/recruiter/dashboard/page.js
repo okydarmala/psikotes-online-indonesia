@@ -3,35 +3,35 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function RecruiterDashboard() {
   const [user, setUser] = useState(null);
   const [participants, setParticipants] = useState([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const { data: session } = useSession();
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      router.push('/login');
+    if (session?.user) {
+      if (session.user.role !== 'recruiter') {
+        router.push('/login');
+        return;
+      }
+      setUser(session.user);
+      loadParticipants();
       return;
     }
 
-    const userData = JSON.parse(userStr);
-    if (userData.role !== 'recruiter') {
-      router.push('/login');
-      return;
-    }
-
-    setUser(userData);
-    loadParticipants();
-  }, [router]);
+    // No NextAuth session — redirect to login
+    router.push('/login');
+  }, [router, session]);
 
   const loadParticipants = async () => {
     try {
-      const token = localStorage.getItem('token');
       const res = await fetch('/api/participants', {
-        headers: { Authorization: \`Bearer \${token}\` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
       });
 
       if (res.ok) {
@@ -46,9 +46,11 @@ export default function RecruiterDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/');
+    try {
+      signOut({ callbackUrl: '/' });
+    } catch (e) {
+      router.push('/');
+    }
   };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
