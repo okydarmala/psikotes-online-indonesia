@@ -4,6 +4,8 @@ import { PrismaAdapter } from '@next-auth/prisma-adapter';
 import prisma from '../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 
+const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+
 const handler = NextAuth({
   adapter: PrismaAdapter(prisma),
   providers: [
@@ -24,7 +26,7 @@ const handler = NextAuth({
     }),
   ],
   session: { strategy: 'jwt', maxAge: 24 * 60 * 60 },
-  jwt: { secret: process.env.NEXTAUTH_SECRET },
+  jwt: { secret: NEXTAUTH_SECRET },
   callbacks: {
     async jwt({ token, user }) {
       if (user) token.role = user.role;
@@ -38,7 +40,8 @@ const handler = NextAuth({
   },
   cookies: {
     sessionToken: {
-      name: 'next-auth.session-token',
+      // Use legacy `token` cookie name so existing auth routes work with NextAuth session
+      name: 'token',
       options: {
         httpOnly: true,
         sameSite: 'lax',

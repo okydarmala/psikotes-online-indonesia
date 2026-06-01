@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useSession, signOut } from 'next-auth/react';
 
 export default function AdminDashboard() {
   const [user, setUser] = useState(null);
@@ -13,24 +14,22 @@ export default function AdminDashboard() {
     completedTests: 0,
   });
   const router = useRouter();
+  const { data: session } = useSession();
 
   useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) {
-      router.push('/login');
+    if (session?.user) {
+      if (session.user.role !== 'admin') {
+        router.push('/login');
+        return;
+      }
+      setUser(session.user);
+      loadStats();
       return;
     }
 
-    const userData = JSON.parse(userStr);
-    if (userData.role !== 'admin') {
-      router.push('/login');
-      return;
-    }
-
-    setUser(userData);
-    // Load stats
-    loadStats();
-  }, [router]);
+    // No NextAuth session — redirect to login
+    router.push('/login');
+  }, [router, session]);
 
   const loadStats = async () => {
     // In production, fetch from API
@@ -43,9 +42,11 @@ export default function AdminDashboard() {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    router.push('/');
+    try {
+      signOut({ callbackUrl: '/' });
+    } catch (e) {
+      router.push('/');
+    }
   };
 
   if (!user) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;

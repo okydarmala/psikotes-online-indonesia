@@ -82,10 +82,7 @@ export default function ParticipantLogin() {
         return;
       }
 
-      // Store token
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('user', JSON.stringify(data.user));
-
+      // NextAuth sets session cookies on OTP verify; redirect to dashboard and NextAuth will provide session
       router.push('/participant/dashboard');
     } catch (err) {
       setError('Terjadi kesalahan server');

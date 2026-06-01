@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
-import { generateToken, verifyOTP } from '../../../../app/lib/utils';
+import { generateToken, verifyOTP } from '../../../../lib/utils';
 import { config } from 'dotenv';
 import { z } from 'zod';
+import { encode } from 'next-auth/jwt';
+import jwt from 'jsonwebtoken';
 
 config();
 
@@ -15,15 +17,15 @@ const OtpVerifySchema = z.object({
   phone: z.string().min(6).optional(),
 }).refine((d) => d.email || d.phone, { message: 'email or phone required' });
 
-export async function POST(request) {
+export const POST = async (request) => {
   try {
-    const body = await request.json();
-    const parse = OtpVerifySchema.safeParse(body);
+    const reqBody = await request.json();
+    const parse = OtpVerifySchema.safeParse(reqBody);
     if (!parse.success) return NextResponse.json({ error: 'Invalid payload', details: parse.error.flatten() }, { status: 400 });
     const { email, phone, otp } = parse.data;
 
     const identifier = email || phone;
-    const attemptsKey = \`verify_\${identifier}\`;
+    const attemptsKey = `verify_${identifier}`;
     const maxAttempts = parseInt(process.env.OTP_MAX_ATTEMPTS || 5);
 
     // Check rate limiting
@@ -79,10 +81,42 @@ export async function POST(request) {
     // Generate JWT token
     const token = generateToken(user);
 
+    // Prepare NextAuth-style JWT so client `useSession()` can recognize the session.
+    let nextAuthEncoded = null;
+    try {
+      const maxAge = 24 * 60 * 60; // match NextAuth session maxAge
+      const now = Math.floor(Date.now() / 1000);
+      const nextAuthToken = {
+        name: user.name,
+        email: user.email,
+        sub: String(user.id),
+        iat: now,
+        exp: now + maxAge,
+        role: user.role,
+      };
+
+      const secret = process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET;
+      // Try next-auth encode first; if it returns falsy, fallback to jsonwebtoken
+      try {
+        nextAuthEncoded = await encode({ token: nextAuthToken, secret, maxAge });
+      } catch (e) {
+        console.error('next-auth encode error:', e);
+      }
+      if (!nextAuthEncoded) {
+        try {
+          nextAuthEncoded = jwt.sign(nextAuthToken, secret, { expiresIn: maxAge });
+        } catch (err) {
+          console.error('jwt sign fallback error:', err);
+        }
+      }
+    } catch (e) {
+      console.error('NextAuth token encode error:', e);
+    }
+
     // Clear verification attempts
     verifyAttempts.delete(attemptsKey);
 
-    const response = NextResponse.json({
+    const body = {
       message: 'Login berhasil',
       token,
       user: {
@@ -92,15 +126,23 @@ export async function POST(request) {
         role: user.role,
         participantId: participant.id,
       },
-    });
+    };
 
-    response.cookies.set('token', token, {
-      httpOnly: true,
-      maxAge: 86400,
-      path: '/',
-    });
+    // Build Set-Cookie headers manually to ensure both cookies are sent.
+    const cookies = [];
+    const cookieValue = nextAuthEncoded || token;
+    const tokenCookie = `token=${cookieValue}; Path=/; HttpOnly; Max-Age=86400`;
+    cookies.push(['Set-Cookie', tokenCookie]);
 
-    return response;
+    if (nextAuthEncoded) {
+      const naCookie = `next-auth.session-token=${nextAuthEncoded}; Path=/; HttpOnly; Max-Age=${24 * 60 * 60}; SameSite=Lax${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
+      cookies.push(['Set-Cookie', naCookie]);
+    }
+
+    return new NextResponse(JSON.stringify(body), {
+      status: 200,
+      headers: cookies.concat([['Content-Type', 'application/json']]),
+    });
   } catch (error) {
     console.error('OTP verification error:', error);
     return NextResponse.json({ error: 'Terjadi kesalahan server' }, { status: 500 });

@@ -3,8 +3,10 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 
 export default function TestInstructions() {
+  const { data: session } = useSession();
   const [assignment, setAssignment] = useState(null);
   const [category, setCategory] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,52 +15,53 @@ export default function TestInstructions() {
   const params = useParams();
 
   useEffect(() => {
+    // if no session, redirect to participant login
+    if (!session) {
+      return;
+    }
     fetchAssignment();
-  }, [params.id]);
+  }, [params.id, session]);
 
-  const fetchAssignment = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(\`/api/tests/assignments/\${params.id}\`, {
-        headers: { Authorization: \`Bearer \${token}\` },
-      });
+    const fetchAssignment = async () => {
+      try {
+        const res = await fetch(`/api/tests/assignments/${params.id}`, {
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
 
       if (res.ok) {
         const data = await res.json();
         setAssignment(data);
-        fetchCategory(data.category_id);
+          await fetchCategory(data.category_id);
       }
     } catch (error) {
       console.error('Error:', error);
     }
   };
 
-  const fetchCategory = async (categoryId) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(\`/api/tests/categories/\${categoryId}\`, {
-        headers: { Authorization: \`Bearer \${token}\` },
-      });
+    const fetchCategory = async (categoryId) => {
+      try {
+        const res = await fetch(`/api/tests/categories/${categoryId}`, {
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+        });
 
-      if (res.ok) {
-        const data = await res.json();
-        setCategory(data);
+        if (res.ok) {
+          const data = await res.json();
+          setCategory(data);
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
   const handleStartTest = async () => {
     setStarting(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(\`/api/tests/assignments/\${params.id}/session\`, {
+      const res = await fetch(`/api/tests/assignments/${params.id}/session`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: \`Bearer \${token}\`,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ ipAddress: '0.0.0.0' }),
       });
 

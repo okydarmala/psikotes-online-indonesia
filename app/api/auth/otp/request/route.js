@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import prisma from '../../../../lib/prisma';
-import { generateOTP, hashOTP } from '../../../../app/lib/utils';
+import { generateOTP, hashOTP } from '../../../../lib/utils';
 import { z } from 'zod';
 
 const OtpRequestSchema = z.object({
@@ -23,7 +23,7 @@ function checkRateLimit(participantEmail) {
     const lastRequest = otpRequests.get(key);
     if (now - lastRequest < cooldownMs) {
       const remainingSeconds = Math.ceil((cooldownMs - (now - lastRequest)) / 1000);
-      throw new Error(\`Tunggu \${remainingSeconds} detik sebelum meminta OTP baru\`);
+      throw new Error(`Tunggu ${remainingSeconds} detik sebelum meminta OTP baru`);
     }
   }
 
@@ -31,7 +31,7 @@ function checkRateLimit(participantEmail) {
   return true;
 }
 
-export async function POST(request) {
+export const POST = async (request) => {
   try {
     const body = await request.json();
     const parse = OtpRequestSchema.safeParse(body);
@@ -76,7 +76,7 @@ export async function POST(request) {
 
     // TODO: Send OTP via email or WhatsApp
     // For development, log the OTP
-    console.log(\`OTP untuk \${identifier}: \${otp}\`);
+    console.log(`OTP untuk ${identifier}: ${otp}`);
 
     return NextResponse.json({
       message: 'OTP telah dikirim',
